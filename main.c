@@ -4,11 +4,13 @@
 #include <stdio.h>
 #define NUM_THREADS 16
 #define DECK_SIZE 52
+#define MAX_ACTIVE_CARDS 9
+#define NUM_SUITS 4
 const uint32_t num_simulations = 1000;
 
-uint64_t x = 12345;
-static uint64_t s[NUM_THREADS * 4];
-uint64_t result_array[NUM_THREADS + 1][25] = {{0}};
+uint64_t x = 12345; //main seed
+static uint64_t s[NUM_THREADS * 4]; //for holding each thread's 4 seeds
+uint64_t result_array[NUM_THREADS + 1][(DECK_SIZE - NUM_SUITS)/2 + 1] = {{0}}; //2D array for holding each thread's score, plus their sum at the last row. (Deck size - number of tens) / 2 gives the number of possible matches and therefore scores, + 1 for no match (a score of 0)
 
 uint64_t splitmix_next() {
 	uint64_t z = (x += UINT64_C(0x9E3779B97F4A7C15));
@@ -69,7 +71,7 @@ void fisher_yates_shuffle(uint8_t arr[], int thread_id) {
 
 void assert_deck_is_valid(uint8_t arr[])
 {
-  int val_array[14] = {0};
+  int val_array[DECK_SIZE/NUM_SUITS + 1] = {0};
   for(int i = 0; i < DECK_SIZE; ++i)
   {
     val_array[arr[i]]++;
@@ -86,7 +88,7 @@ int score_array(uint8_t arr[])
 {
   int score = 0;
   int count = 0;
-  int val_array[DECK_SIZE/4 + 1] = {0};
+  uint8_t val_array[DECK_SIZE/NUM_SUITS + 1] = {0};
 
   assert_deck_is_valid(arr);
 
@@ -94,13 +96,13 @@ int score_array(uint8_t arr[])
   {
     int num = arr[i];
     assert(num >= 1);
-    assert(num <= DECK_SIZE/4);
+    assert(num <= DECK_SIZE/NUM_SUITS);
     if(num < 10)
     {
       if(val_array[10 - num] > 0)
       {
         val_array[10 - num]--;
-        score++;
+        val_array[0]++;
         count--;
       }
       else
@@ -114,7 +116,7 @@ int score_array(uint8_t arr[])
       if(val_array[num] > 0)
       {
         val_array[num]--;
-        score++;
+        val_array[0]++;
         count--;
       }
       else
@@ -123,24 +125,24 @@ int score_array(uint8_t arr[])
         count++;
       }
     }
-    else if(num == 10)
+    else
     {
       val_array[num]++;
       count++;
     }
     assert(val_array[num] >= 0);
-    assert(val_array[num] <= 4);
+    assert(val_array[num] <= NUM_SUITS);
     assert(count >= 0);
-    assert(count <= 10);
+    assert(count <= MAX_ACTIVE_CARDS + 1);
 
-    if(count == 10)
+    if(count == MAX_ACTIVE_CARDS + 1)
     {
-      assert(score >=0);
-      assert(score <= 24);
-      return score;
+      assert(val_array[0] >= 0);
+      assert(val_array[0] <= (DECK_SIZE - NUM_SUITS) / 2 + 1);
+      return val_array[0];
     }
   }
-  return score;
+  return val_array[0];
 }
 
 struct ThreadArgs{
