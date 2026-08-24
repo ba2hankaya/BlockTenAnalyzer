@@ -21,7 +21,7 @@ static void fisher_yates_shuffle(uint8_t arr[], int thread_id) {
     }
 }
 
-void assert_deck_is_valid(uint8_t arr[])
+static void assert_deck_is_valid(const uint8_t arr[])
 {
   int val_array[DECK_SIZE/NUM_SUITS + 1] = {0};
   for(int i = 0; i < DECK_SIZE; ++i)
@@ -36,7 +36,7 @@ void assert_deck_is_valid(uint8_t arr[])
   }
 }
 
-uint8_t score_array(uint8_t arr[])
+static uint8_t score_array(uint8_t arr[])
 {
   int count = 0;
   uint8_t val_array[DECK_SIZE/NUM_SUITS + 1] = {0};
@@ -81,14 +81,12 @@ uint8_t score_array(uint8_t arr[])
       val_array[num]++;
       count++;
     }
-    assert(val_array[num] >= 0);
     assert(val_array[num] <= NUM_SUITS);
     assert(count >= 0);
     assert(count <= MAX_ACTIVE_CARDS + 1);
 
     if(count == MAX_ACTIVE_CARDS + 1)
     {
-      assert(val_array[0] >= 0);
       assert(val_array[0] <= (DECK_SIZE - NUM_SUITS) / 2 + 1);
       return val_array[0];
     }
@@ -101,9 +99,10 @@ struct ThreadArgs{
   uint32_t num_sim;
 };
 
+// cppcheck-suppress [constParameterCallback]
 void* worker(void* arg)
 {
-  struct ThreadArgs* args = (struct ThreadArgs*)arg;
+  const struct ThreadArgs* args = (const struct ThreadArgs*)arg;
   int thread_id = args->id;
   uint32_t num_runs = args->num_sim;
 
@@ -134,12 +133,12 @@ int main(void)
 
   struct ThreadArgs args[NUM_THREADS];
 
-  int modulo_num = num_simulations % NUM_THREADS;
+  int modulo_num = NUM_SIMS % NUM_THREADS;
 
   for(int i = 0; i < NUM_THREADS; i++)
   {
     args[i].id = i;
-    args[i].num_sim = num_simulations/NUM_THREADS + (modulo_num > 0 ? 1 : 0);
+    args[i].num_sim = NUM_SIMS/NUM_THREADS + (modulo_num > 0 ? 1 : 0);
     modulo_num--;
     int return_code = pthread_create(&threads[i], NULL, worker, &args[i]); 
     if(return_code != 0)
@@ -174,7 +173,7 @@ int main(void)
     count += result_array[NUM_THREADS][j];
   }
 
-  (void)fprintf(stdout, "\nTotal sim ran: %ld\n", count);
+  (void)fprintf(stdout, "\nTotal sim ran: %lu\n", count);
   return 0;
 }
 
