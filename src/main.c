@@ -2,7 +2,9 @@
 #include <pthread.h>
 #include <assert.h>
 #include <stdio.h>
-#define NUM_THREADS 16
+#include "config.h"
+#include "rng.h"
+
 #define DECK_SIZE 52
 #define MAX_ACTIVE_CARDS 9
 #define NUM_SUITS 4
