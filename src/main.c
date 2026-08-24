@@ -6,60 +6,10 @@
 #define DECK_SIZE 52
 #define MAX_ACTIVE_CARDS 9
 #define NUM_SUITS 4
-const uint32_t num_simulations = 100 * 1000 * 1000;
 
-uint64_t x = 12345; //main seed
-static uint64_t s[NUM_THREADS * 4]; //for holding each thread's 4 seeds
 uint64_t result_array[NUM_THREADS + 1][(DECK_SIZE - NUM_SUITS)/2 + 1] = {{0}}; //2D array for holding each thread's score, plus their sum at the last row. (Deck size - number of tens) / 2 gives the number of possible matches and therefore scores, + 1 for no match (a score of 0)
 
-uint64_t splitmix_next(void) {
-	uint64_t z = (x += UINT64_C(0x9E3779B97F4A7C15));
-	z = (z ^ (z >> 30)) * UINT64_C(0xBF58476D1CE4E5B9);
-	z = (z ^ (z >> 27)) * UINT64_C(0x94D049BB133111EB);
-	return z ^ (z >> 31);
-}
-
-static inline uint64_t rotl(const uint64_t seed, int k) {
-	return (seed << k) | (seed >> (64 - k));
-}
-
-uint64_t next(int i) {
-	const uint64_t result = rotl(s[0 + i * 4] + s[3 + i * 4], 23) + s[0 + i * 4];
-
-	const uint64_t t = s[1 + i*4] << 17;
-
-	s[2 + i * 4] ^= s[0 + i * 4];
-	s[3 + i * 4] ^= s[1 + i * 4];
-	s[1 + i * 4] ^= s[2 + i * 4];
-	s[0 + i * 4] ^= s[3 + i * 4];
-
-	s[2 + i * 4] ^= t;
-
-	s[3 + i * 4] = rotl(s[3 + i * 4], 45);
-
-	return result;
-}
-
-uint32_t random_range(uint32_t min, uint32_t max, int thread_id) {
-    uint32_t range = max - min + 1;
-    uint64_t random_32bit = next(thread_id) & 0xFFFFFFFF;
-
-    uint64_t multi_result = random_32bit * range;
-    uint32_t low_bits = (uint32_t)multi_result;
-
-    if (low_bits < range) {
-        uint32_t threshold = -range % range;
-        while (low_bits < threshold) {
-            random_32bit = next(thread_id) & 0xFFFFFFFF;
-            multi_result = random_32bit * range;
-            low_bits = (uint32_t)multi_result;
-        }
-    }
-
-    return min + (multi_result >> 32);
-}
-
-void fisher_yates_shuffle(uint8_t arr[], int thread_id) {
+static void fisher_yates_shuffle(uint8_t arr[], int thread_id) {
     for (uint32_t i = DECK_SIZE - 1; i > 0; i--) {
         uint32_t j = random_range(0, i, thread_id); 
 
@@ -174,17 +124,10 @@ void* worker(void* arg)
   return NULL;
 }
 
-void initialize_xoshiro_seeds(void)
-{
-  for(int i = 0; i < NUM_THREADS * 4; i++)
-  {
-    s[i] = splitmix_next();
-  }
-}
-
 int main(void)
 {
-  initialize_xoshiro_seeds();
+  initialize_rng();
+  
   pthread_t threads[NUM_THREADS];
 
   struct ThreadArgs args[NUM_THREADS];
