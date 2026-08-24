@@ -1,0 +1,13 @@
+*.exe
+*.out
+
+*.o
+*.d
+.*.swp
+.*.swo
+*~
+.netrwhist
+
+.cppcheck_cache/
+
+env
