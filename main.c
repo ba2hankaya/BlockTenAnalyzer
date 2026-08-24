@@ -6,7 +6,7 @@
 #define DECK_SIZE 52
 #define MAX_ACTIVE_CARDS 9
 #define NUM_SUITS 4
-const uint32_t num_simulations = 1000;
+const uint32_t num_simulations = 100 * 1000 * 1000;
 
 uint64_t x = 12345; //main seed
 static uint64_t s[NUM_THREADS * 4]; //for holding each thread's 4 seeds
@@ -86,7 +86,6 @@ void assert_deck_is_valid(uint8_t arr[])
 
 uint8_t score_array(uint8_t arr[])
 {
-  int score = 0;
   int count = 0;
   uint8_t val_array[DECK_SIZE/NUM_SUITS + 1] = {0};
 
@@ -186,12 +185,6 @@ void initialize_xoshiro_seeds(void)
 int main(void)
 {
   initialize_xoshiro_seeds();
-}
-
-
-int main()
-{
-  init();
   pthread_t threads[NUM_THREADS];
 
   struct ThreadArgs args[NUM_THREADS];
