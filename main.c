@@ -4,11 +4,11 @@
 #include <stdio.h>
 #define NUM_THREADS 16
 #define DECK_SIZE 52
-const uint32_t num_simulations = 10000000;
+const uint32_t num_simulations = 1000;
 
 uint64_t x = 12345;
 static uint64_t s[NUM_THREADS * 4];
-uint64_t result_array[NUM_THREADS][25] = {{0}};
+uint64_t result_array[NUM_THREADS + 1][25] = {{0}};
 
 uint64_t splitmix_next() {
 	uint64_t z = (x += UINT64_C(0x9E3779B97F4A7C15));
@@ -189,10 +189,12 @@ int main()
   init();
   pthread_t threads[NUM_THREADS];
   struct ThreadArgs args[NUM_THREADS];
+  int modulo_num = num_simulations % NUM_THREADS;
   for(int i = 0; i < NUM_THREADS; i++)
   {
     args[i].id = i;
-    args[i].num_sim = num_simulations/NUM_THREADS;
+    args[i].num_sim = num_simulations/NUM_THREADS + (modulo_num > 0 ? 1 : 0);
+    modulo_num--;
     int return_code = pthread_create(&threads[i], NULL, worker, &args[i]); 
     if(return_code != 0)
     {
@@ -213,10 +215,16 @@ int main()
   {
     for(int j = 0; j < 25; j++)
     {
-      fprintf(stdout, "%ld ", result_array[i][j]);
+      result_array[NUM_THREADS][j] += result_array[i][j];
     }
-    fprintf(stdout, "\n");
   }
+  uint64_t count = 0;
+  for(int j = 0; j < 25; j++)
+  {
+    fprintf(stdout, "%ld ", result_array[NUM_THREADS][j]);
+    count += result_array[NUM_THREADS][j];
+  }
+  fprintf(stdout, "\nTotal sim ran: %ld", count);
   return 0;
 }
 
