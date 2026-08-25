@@ -2,6 +2,7 @@
 #include "rng.h"
 #include <pthread.h>
 
+//NOLINTBEGIN(readability-magic-numbers, readability-identifier-length)
 static uint64_t x = MAIN_SEED;
 static uint64_t s[NUM_THREADS * 4]; //for holding each thread's 4 seeds
 
@@ -26,18 +27,18 @@ static inline uint64_t rotl(const uint64_t seed, int k) {
 }
 
 static uint64_t next(int i) {
-        const uint64_t result = rotl(s[0 + i * 4] + s[3 + i * 4], 23) + s[0 + i * 4];
+        const uint64_t result = rotl(s[0 + (i * 4)] + s[3 + (i * 4)], 23) + s[0 + (i * 4)];
 
-        const uint64_t t = s[1 + i*4] << 17;
+        const uint64_t t = s[1 + (i*4)] << 17;
 
-        s[2 + i * 4] ^= s[0 + i * 4];
-        s[3 + i * 4] ^= s[1 + i * 4];
-        s[1 + i * 4] ^= s[2 + i * 4];
-        s[0 + i * 4] ^= s[3 + i * 4];
+        s[2 + (i * 4)] ^= s[0 + (i * 4)];
+        s[3 + (i * 4)] ^= s[1 + (i * 4)];
+        s[1 + (i * 4)] ^= s[2 + (i * 4)];
+        s[0 + (i * 4)] ^= s[3 + (i * 4)];
 
-        s[2 + i * 4] ^= t;
+        s[2 + (i * 4)] ^= t;
 
-        s[3 + i * 4] = rotl(s[3 + i * 4], 45);
+        s[3 + (i * 4)] = rotl(s[3 + (i * 4)], 45);
 
         return result;
 }
@@ -60,3 +61,4 @@ uint32_t random_range(uint32_t min, uint32_t max, ThreadID thread_id) {
 
     return min + (uint32_t)(multi_result >> 32);
 }
+//NOLINTEND(readability-magic-numbers, readability-identifier-length)
