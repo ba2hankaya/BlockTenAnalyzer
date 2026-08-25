@@ -6,9 +6,9 @@
 #include "rng.h"
 #include "safety.h"
 
-#define ERROR_INVALID_DECK -1
-#define ERROR_INVALID_INPUT -2
-#define ERROR_IMPOSSIBLE_VALUE_REACHED -3
+#define ERROR_INVALID_DECK (-1)
+#define ERROR_INVALID_INPUT (-2)
+#define ERROR_IMPOSSIBLE_VALUE_REACHED (-3)
 
 #define DECK_SIZE 52
 #define MAX_ACTIVE_CARDS 9
