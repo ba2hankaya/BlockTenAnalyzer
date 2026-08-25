@@ -88,11 +88,11 @@ static int score_array(int arr[])
   for(int i = 0; i < DECK_SIZE; i++)
   {
     int num = arr[i];
-    if(num < 10)
+    if(num < UNMATCHABLE_CARD)
     {
-      if(val_array[10 - num] > 0)
+      if(val_array[UNMATCHABLE_CARD - num] > 0)
       {
-        val_array[10 - num]--;
+        val_array[UNMATCHABLE_CARD - num]--;
         val_array[0]++;
         count--;
       }
@@ -102,7 +102,7 @@ static int score_array(int arr[])
         count++;
       }
     }
-    else if(num > 10)
+    else if(num > UNMATCHABLE_CARD)
     {
       if(val_array[num] > 0)
       {
@@ -167,11 +167,11 @@ void* worker(void* arg)
   uint64_t num_runs = args->num_sim;
 
   int deck[DECK_SIZE];
-  for(int j = 0; j < 4; j++)
+  for(int j = 0; j < NUM_SUITS; j++)
   {
-    for(int i = 0; i < DECK_SIZE/4; i++)
+    for(int i = 0; i < DECK_SIZE / NUM_SUITS; i++)
     {
-      deck[j * 13 + i] = i + 1;
+      deck[(j * DECK_SIZE / NUM_SUITS) + i] = i + 1;
     }
   }
 
@@ -253,14 +253,14 @@ int main(void)
     {
       continue;
     }
-    for(int j = 0; j < 25; j++)
+    for(int j = 0; j < POSSIBLE_SCORE_COUNT; j++)
     {
       result_array[NUM_THREADS][j] += result_array[i][j];
     }
   }
 
   uint64_t count = 0;
-  for(int j = 0; j < 25; j++)
+  for(int j = 0; j < POSSIBLE_SCORE_COUNT; j++)
   {
     (void)fprintf(stdout, "%ld ", result_array[NUM_THREADS][j]);
     count += result_array[NUM_THREADS][j];
