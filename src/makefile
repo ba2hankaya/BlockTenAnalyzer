@@ -26,7 +26,7 @@ $(ODIR)/%.o: %.c $(DEPS)
 	@mkdir -p $(ODIR)
 	$(CC) -c $< $(CFLAGS) -o $@
 
-simulator: $(OBJ)
+simulator.exe: $(OBJ)
 	$(CC) $^ $(CFLAGS) -o $@
 
 lint: check-cppcheck check-clang
