@@ -2,9 +2,14 @@
 #define RNG_H
 
 #include <stdint.h>
+#include <string.h>
 
 void initialize_rng(void);
 
-uint32_t random_range(uint32_t min, uint32_t max, int thread_id);
+typedef struct{
+  size_t id;
+} ThreadID;
+
+uint32_t random_range(uint32_t min, uint32_t max, ThreadID thread_id);
 
 #endif

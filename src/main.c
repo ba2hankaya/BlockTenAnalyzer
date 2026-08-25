@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include "config.h"
 #include "rng.h"
 #include "safety.h"
@@ -23,13 +24,14 @@ static int fisher_yates_shuffle(int arr[], size_t thread_id) {
       return ERROR_INVALID_INPUT;
     }
 
-    if(!require_in_bounds(thread_id, NUM_THREADS))
+    if(!c_assert(thread_id < NUM_THREADS) == true)
     {
       return ERROR_INVALID_INPUT;
     }
-
+    ThreadID s_thread_id;
+    s_thread_id.id = thread_id;
     for (uint32_t i = DECK_SIZE - 1; i > 0; i--) {
-        uint32_t j = random_range(0, i, thread_id); 
+        uint32_t j = random_range(0, i, s_thread_id); 
 
         int temp = arr[j];
         arr[j] = arr[i];
@@ -153,7 +155,7 @@ static int score_array(int arr[])
 }
 
 struct ThreadArgs{
-  int id;
+  size_t id;
   uint32_t num_sim;
 };
 
@@ -161,7 +163,7 @@ struct ThreadArgs{
 void* worker(void* arg)
 {
   const struct ThreadArgs* args = (const struct ThreadArgs*)arg;
-  int thread_id = args->id;
+  size_t thread_id = args->id;
   uint64_t num_runs = args->num_sim;
 
   int deck[DECK_SIZE];
@@ -178,14 +180,16 @@ void* worker(void* arg)
     int fisher_yates_ret = fisher_yates_shuffle(deck, thread_id);
     if(fisher_yates_ret < 0)
     {
-      (void)fprintf(stderr, "Thread no %d aborting... Fisher Yates error: %d\n", thread_id, fisher_yates_ret);
-      return (void*)(intptr_t) fisher_yates_ret;
+      (void)fprintf(stderr, "Thread no %zu aborting... Fisher Yates error: %d\n", thread_id, fisher_yates_ret);
+      void* ptr_ret = (void*)(intptr_t)fisher_yates_ret;
+      return ptr_ret;
     }
     int score = score_array(deck);
     if(score < 0)
     {
-      (void)fprintf(stderr, "Thread no %d aborting... Scoring error: %d\n", thread_id, score);
-      return (void*)(intptr_t) score;
+      (void)fprintf(stderr, "Thread no %zu aborting... Scoring error: %d\n", thread_id, score);
+      void* score_ret = (void*)(intptr_t)score;
+      return score_ret;
     }
     result_array[thread_id][score]++;
   }
@@ -212,15 +216,15 @@ int main(void)
 
   int modulo_num = NUM_SIMS % NUM_THREADS;
 
-  for(int i = 0; i < NUM_THREADS; i++)
+  for(size_t i = 0; i < NUM_THREADS; i++)
   {
     args[i].id = i;
-    args[i].num_sim = NUM_SIMS/NUM_THREADS + (modulo_num > 0 ? 1 : 0);
+    args[i].num_sim = (NUM_SIMS/NUM_THREADS) + (modulo_num > 0 ? 1 : 0);
     modulo_num--;
     int return_code = pthread_create(&threads[i], NULL, worker, &args[i]); 
     if(return_code != 0)
     {
-      (void)fprintf(stderr, "Thread no %d creation failed with return code: %d\n", i, return_code);
+      (void)fprintf(stderr, "Thread no %zu creation failed with return code: %d\n", i, return_code);
       return 1;
     }
   }

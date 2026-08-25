@@ -52,7 +52,7 @@ uint32_t random_range(uint32_t min, uint32_t max, int thread_id) {
     if (low_bits < range) {
         uint32_t threshold = (0 - range) % range;
         while (low_bits < threshold) {
-            random_32bit = next(thread_id) & 0xFFFFFFFF;
+            random_32bit = next(thread_id.id) & 0xFFFFFFFF;
             multi_result = random_32bit * range;
             low_bits = (uint32_t)multi_result;
         }
