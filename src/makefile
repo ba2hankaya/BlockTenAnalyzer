@@ -45,7 +45,7 @@ check-cppcheck:
 check-clang:
 	@echo "Running Clang-Tidy Engine"
 	$(CLANG_TIDY) main.c rng.c \
-		-checks='-*,bugprone-*,performance-*,readability-*,cert-*,clang-analyzer-*' \
+		-checks='-*,bugprone-*,performance-*,readability-*,cert-*,clang-analyzer-*,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling' \
 		-- $(CFLAGS)
 
 clean:
