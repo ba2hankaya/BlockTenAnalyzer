@@ -13,10 +13,11 @@
 #define DECK_SIZE 52
 #define MAX_ACTIVE_CARDS 9
 #define NUM_SUITS 4
+#define UNMATCHABLE_CARD 10
+#define POSSIBLE_SCORE_COUNT ((((DECK_SIZE)-NUM_SUITS)/2) + 1)    //2D array for holding each thread's score, plus their sum at the last row. (Deck size - number of tens) / 2 gives the number of possible matches and therefore scores, + 1 for no match (a score of 0)
+uint64_t result_array[NUM_THREADS + 1][POSSIBLE_SCORE_COUNT] = {{0}}; 
 
-uint64_t result_array[NUM_THREADS + 1][(DECK_SIZE - NUM_SUITS)/2 + 1] = {{0}}; //2D array for holding each thread's score, plus their sum at the last row. (Deck size - number of tens) / 2 gives the number of possible matches and therefore scores, + 1 for no match (a score of 0)
-
-static int fisher_yates_shuffle(int arr[], int thread_id) {
+static int fisher_yates_shuffle(int arr[], size_t thread_id) {
     if(!require_valid_ptr(arr))
     {
       return ERROR_INVALID_INPUT;
@@ -45,7 +46,7 @@ static int assert_deck_is_valid(const int arr[])
     return ERROR_INVALID_INPUT;
   }
 
-  int val_array[DECK_SIZE/NUM_SUITS + 1] = {0};
+  int val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
   for(int i = 0; i < DECK_SIZE; ++i)
   {
     val_array[arr[i]]++;
@@ -55,7 +56,7 @@ static int assert_deck_is_valid(const int arr[])
   {
     return ERROR_INVALID_DECK;
   }
-  for(int i = 1; i < 14; ++i)
+  for(int i = 1; i < ((DECK_SIZE / NUM_SUITS) + 1); ++i) //one entry for each card value + 1 for keeping the score
   {
     if(!c_assert(val_array[i] == 4))
     {
@@ -79,7 +80,7 @@ static int score_array(int arr[])
   }
 
   int count = 0;
-  int val_array[DECK_SIZE/NUM_SUITS + 1] = {0};
+  int val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
 
 
   for(int i = 0; i < DECK_SIZE; i++)
@@ -137,7 +138,7 @@ static int score_array(int arr[])
 
     if(count == MAX_ACTIVE_CARDS + 1)
     {
-      if (!c_assert(val_array[0] <= (DECK_SIZE - NUM_SUITS) / 2 + 1) == true)
+      if (!c_assert((val_array[0] <= (POSSIBLE_SCORE_COUNT)) == true))
       {
         return ERROR_IMPOSSIBLE_VALUE_REACHED;
       }
