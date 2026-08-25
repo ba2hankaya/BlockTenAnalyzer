@@ -42,9 +42,9 @@ static uint64_t next(int i) {
         return result;
 }
 
-uint32_t random_range(uint32_t min, uint32_t max, int thread_id) {
+uint32_t random_range(uint32_t min, uint32_t max, ThreadID thread_id) {
     uint32_t range = max - min + 1;
-    uint64_t random_32bit = next(thread_id) & 0xFFFFFFFF;
+    uint64_t random_32bit = next(thread_id.id) & 0xFFFFFFFF;
 
     uint64_t multi_result = random_32bit * range;
     uint32_t low_bits = (uint32_t)multi_result;
