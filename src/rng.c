@@ -26,19 +26,19 @@ static inline uint64_t rotl(const uint64_t seed, int k) {
         return (seed << k) | (seed >> (64 - k));
 }
 
-static uint64_t next(int i) {
-        const uint64_t result = rotl(s[0 + (i * 4)] + s[3 + (i * 4)], 23) + s[0 + (i * 4)];
+static uint64_t next(size_t thread_id) {
+        const uint64_t result = rotl(s[0 + (thread_id * 4)] + s[3 + (thread_id * 4)], 23) + s[0 + (thread_id * 4)];
 
-        const uint64_t t = s[1 + (i*4)] << 17;
+        const uint64_t t = s[1 + (thread_id*4)] << 17;
 
-        s[2 + (i * 4)] ^= s[0 + (i * 4)];
-        s[3 + (i * 4)] ^= s[1 + (i * 4)];
-        s[1 + (i * 4)] ^= s[2 + (i * 4)];
-        s[0 + (i * 4)] ^= s[3 + (i * 4)];
+        s[2 + (thread_id * 4)] ^= s[0 + (thread_id * 4)];
+        s[3 + (thread_id * 4)] ^= s[1 + (thread_id * 4)];
+        s[1 + (thread_id * 4)] ^= s[2 + (thread_id * 4)];
+        s[0 + (thread_id * 4)] ^= s[3 + (thread_id * 4)];
 
-        s[2 + (i * 4)] ^= t;
+        s[2 + (thread_id * 4)] ^= t;
 
-        s[3 + (i * 4)] = rotl(s[3 + (i * 4)], 45);
+        s[3 + (thread_id * 4)] = rotl(s[3 + (thread_id * 4)], 45);
 
         return result;
 }
