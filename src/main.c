@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "config.h"
 #include "rng.h"
 #include "safety.h"
@@ -12,7 +13,9 @@ typedef enum {
   SYS_OK = 0,
   ERROR_INVALID_INPUT = 1,
   ERROR_INVALID_DECK = 2,
-  ERROR_IMPOSSIBLE_VALUE_REACHED = 3
+  ERROR_IMPOSSIBLE_VALUE_REACHED = 3,
+  ERROR_COULD_NOT_CREATE_OUTPUT_FILE = 4,
+  ERROR_COULD_NOT_CLOSE_OUTPUT_FILE = 5
 } AppStatus;
 
 #define DECK_SIZE 52
@@ -332,6 +335,40 @@ void* worker(void* arg)
   return NULL;
 }
 
+static AppStatus write_output_as_json(const uint64_t result_arr[])
+{
+  if(!require_valid_ptr(result_arr))
+  {
+    return ERROR_INVALID_INPUT;
+  }
+  
+  FILE *fptr;
+  fptr = fopen("output.json", "w");
+  
+  if(fptr == NULL)
+  {
+    return ERROR_COULD_NOT_CREATE_OUTPUT_FILE;
+  }
+  
+  (void)fprintf(fptr, "{\n");
+  for(int i = 0; i < NUM_POSSIBLE_SCORES; ++i) {
+      (void)fprintf(fptr, "  \"%d\": %ld", i, result_arr[i]);
+      if(i != NUM_POSSIBLE_SCORES - 1){
+          (void)fprintf(fptr, ",");
+      }
+      (void)fprintf(fptr, "\n");
+  }
+  (void)fprintf(fptr, "}\n");
+  int ret_val_fclose = fclose(fptr);
+  if(ret_val_fclose != 0)
+  {
+    (void)fprintf(stderr, "fclose failed: error code is '%d'", errno);
+    return ERROR_COULD_NOT_CLOSE_OUTPUT_FILE;
+  }
+  (void)fprintf(stdout, "results written to output.json");
+  return SYS_OK;
+}
+
 int main(void)
 {
   if(!c_assert(NUM_THREADS <= 64) == true)
@@ -370,7 +407,7 @@ int main(void)
     }
     
     AppStatus ret_code_worker_thread = thread_data[i].out_status;
-    if(!c_assert(ret_code_worker_thread == 0) == true)
+    if(!c_assert(ret_code_worker_thread == SYS_OK) == true)
     {
       (void)fprintf(stderr, "Thread no %d reported error: %d. Its data will not be evaluated.\n", i, ret_code_worker_thread);
       thread_bitmask = thread_bitmask | (1ULL << i);
@@ -387,7 +424,12 @@ int main(void)
       count += result_array[i][j];
     }
   }
-  
+  AppStatus ret_code_write_output = write_output_as_json(result_array[NUM_THREADS]);
+  if(!c_assert(ret_code_write_output == SYS_OK) == true)
+  {
+     (void)fprintf(stderr, "Error while writing results to output.json\n");
+  }
+
   (void)fprintf(stdout, "\n ------------- SCORES ------------- \n");
   for(int i = 0; i < NUM_POSSIBLE_SCORES; ++i)
   {
