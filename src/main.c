@@ -30,6 +30,8 @@ typedef enum {
 
 static const uint8_t DECK_VALUES[DECK_SIZE / 2] = { 0x11, 0x11, 0x22, 0x22, 0x33, 0x33, 0x44, 0x44, 0x55, 0x55, 0x66, 0x66, 0x77, 0x77, 0x88, 0x88, 0x99, 0x99, 0xAA, 0xAA, 0xBB, 0xBB, 0xCC, 0xCC, 0xDD, 0xDD };
 
+// Adding no lint since swapping first_index with second_index doesn't affect the result of the function 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static AppStatus swap_nibbles(uint8_t first_index, uint8_t second_index, uint8_t arr[])
 {
   if(!c_assert(first_index <= DECK_SIZE - 1) == true)
