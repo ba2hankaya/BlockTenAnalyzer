@@ -23,6 +23,12 @@ typedef enum {
 #define NUM_SUITS 4
 #define UNMATCHABLE_CARD 10
 #define NUM_POSSIBLE_SCORES ((((DECK_SIZE)-NUM_SUITS)/2) + 1)    //2D array for holding each thread's score, plus their sum at the last row. (Deck size - number of tens) / 2 gives the number of possible matches and therefore scores, + 1 for no match (a score of 0)
+#define NIBBLE_SHIFT       4
+#define NIBBLE_MASK_LOWER  0x0F
+#define NIBBLE_MASK_UPPER  0xF0
+#define BIT_MASK_ODD       0x01
+
+static const uint8_t DECK_VALUES[DECK_SIZE / 2] = { 0x11, 0x11, 0x22, 0x22, 0x33, 0x33, 0x44, 0x44, 0x55, 0x55, 0x66, 0x66, 0x77, 0x77, 0x88, 0x88, 0x99, 0x99, 0xAA, 0xAA, 0xBB, 0xBB, 0xCC, 0xCC, 0xDD, 0xDD };
 
 static AppStatus swap_nibbles(uint8_t first_index, uint8_t second_index, uint8_t arr[])
 {
@@ -40,21 +46,20 @@ static AppStatus swap_nibbles(uint8_t first_index, uint8_t second_index, uint8_t
   {
     return ERROR_INVALID_INPUT;
   }
-
-  size_t idx1 = first_index >> 1; 
+  
+  size_t idx1 = first_index >> 1;
   size_t idx2 = second_index >> 1;
 
-  uint8_t val1 = (first_index & 1)  ? (arr[idx1] & 0x0F) : (arr[idx1] >> 4);
-  uint8_t val2 = (second_index & 1) ? (arr[idx2] & 0x0F) : (arr[idx2] >> 4);
+  uint8_t val1 = (first_index & BIT_MASK_ODD)  ? (arr[idx1] & NIBBLE_MASK_LOWER) : (arr[idx1] >> NIBBLE_SHIFT);
+  uint8_t val2 = (second_index & BIT_MASK_ODD) ? (arr[idx2] & NIBBLE_MASK_LOWER) : (arr[idx2] >> NIBBLE_SHIFT);
 
-  arr[idx1] &= (first_index & 1)  ? 0xF0 : 0x0F;
-  arr[idx2] &= (second_index & 1) ? 0xF0 : 0x0F;
+  arr[idx1] &= (first_index & BIT_MASK_ODD)  ? NIBBLE_MASK_UPPER : NIBBLE_MASK_LOWER;
+  arr[idx2] &= (second_index & BIT_MASK_ODD) ? NIBBLE_MASK_UPPER : NIBBLE_MASK_LOWER;
 
-  arr[idx1] |= (first_index & 1)  ? val2 : (val2 << 4);
-  arr[idx2] |= (second_index & 1) ? val1 : (val1 << 4);
+  arr[idx1] |= (first_index & BIT_MASK_ODD)  ? val2 : (val2 << NIBBLE_SHIFT);
+  arr[idx2] |= (second_index & BIT_MASK_ODD) ? val1 : (val1 << NIBBLE_SHIFT);
 
   return SYS_OK;
-
 }
 
 static AppStatus fisher_yates_shuffle(uint8_t arr[], size_t thread_id) {
@@ -94,8 +99,8 @@ static AppStatus assert_deck_is_valid(const uint8_t arr[])
   int val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
   for(int i = 0; i < DECK_SIZE / 2; ++i)
   {
-    val_array[arr[i] & 0x0F]++;
-    val_array[(arr[i] & 0xF0) >> 4]++;
+    val_array[arr[i] & NIBBLE_MASK_LOWER]++;
+    val_array[(arr[i] & NIBBLE_MASK_UPPER) >> 4]++;
   }
   
   if(!c_assert(val_array[0] == 0))
@@ -268,8 +273,8 @@ static AppStatus score_array(uint8_t arr[], ScoreResult* out_result)
   {
     uint8_t num;
 
-    if(i & 0x01) { num = (arr[i >> 1] & 0x0F); }
-    else { num = (arr[i >> 1] & 0xF0) >> 4; }
+    if(i & 0x01) { num = (arr[i >> 1] & NIBBLE_MASK_LOWER); }
+    else { num = (arr[i >> 1] & NIBBLE_MASK_UPPER) >> 4; }
 
     int delta_count = 0;
 
@@ -342,7 +347,8 @@ void* worker(void* arg)
 
   uint64_t num_runs = args->num_sim;
 
-  uint8_t deck[DECK_SIZE/2] = { 0x11, 0x11, 0x22, 0x22, 0x33, 0x33, 0x44, 0x44, 0x55, 0x55, 0x66, 0x66, 0x77, 0x77, 0x88, 0x88, 0x99, 0x99, 0xAA, 0xAA, 0xBB, 0xBB, 0xCC, 0xCC, 0xDD, 0xDD };
+  uint8_t deck[DECK_SIZE/2];
+  (void)memcpy(deck, DECK_VALUES, sizeof(DECK_VALUES));
 
   ScoreResult res = {0};
   for(uint64_t i = 0; i < num_runs; i++)
@@ -457,6 +463,7 @@ int main(void)
       count += result_array[i][j];
     }
   }
+
   AppStatus ret_code_write_output = write_output_as_json(result_array[NUM_THREADS]);
   if(!c_assert(ret_code_write_output == SYS_OK) == true)
   {
