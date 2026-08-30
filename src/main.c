@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <inttypes.h>
 #include "config.h"
 #include "rng.h"
 #include "safety.h"
-
 
 typedef enum {
   SYS_OK = 0,
@@ -24,6 +24,39 @@ typedef enum {
 #define UNMATCHABLE_CARD 10
 #define NUM_POSSIBLE_SCORES ((((DECK_SIZE)-NUM_SUITS)/2) + 1)    //2D array for holding each thread's score, plus their sum at the last row. (Deck size - number of tens) / 2 gives the number of possible matches and therefore scores, + 1 for no match (a score of 0)
 
+static AppStatus swap_nibbles(uint8_t first_index, uint8_t second_index, uint8_t arr[])
+{
+  if(!c_assert(first_index <= DECK_SIZE - 1) == true)
+  {
+    return ERROR_INVALID_INPUT;
+  }
+
+  if(!c_assert(second_index <= DECK_SIZE - 1) == true)
+  {
+    return ERROR_INVALID_INPUT;
+  }
+
+  if(!require_valid_ptr(arr))
+  {
+    return ERROR_INVALID_INPUT;
+  }
+
+  size_t idx1 = first_index >> 1; 
+  size_t idx2 = second_index >> 1;
+
+  uint8_t val1 = (first_index & 1)  ? (arr[idx1] & 0x0F) : (arr[idx1] >> 4);
+  uint8_t val2 = (second_index & 1) ? (arr[idx2] & 0x0F) : (arr[idx2] >> 4);
+
+  arr[idx1] &= (first_index & 1)  ? 0xF0 : 0x0F;
+  arr[idx2] &= (second_index & 1) ? 0xF0 : 0x0F;
+
+  arr[idx1] |= (first_index & 1)  ? val2 : (val2 << 4);
+  arr[idx2] |= (second_index & 1) ? val1 : (val1 << 4);
+
+  return SYS_OK;
+
+}
+
 static AppStatus fisher_yates_shuffle(uint8_t arr[], size_t thread_id) {
     if(!require_valid_ptr(arr))
     {
@@ -38,18 +71,20 @@ static AppStatus fisher_yates_shuffle(uint8_t arr[], size_t thread_id) {
     ThreadID s_thread_id;
     s_thread_id.id = thread_id;
 
-    for (uint32_t i = DECK_SIZE - 1; i > 0; i--) {
-        uint32_t second_index = random_range(0, i, s_thread_id); 
-
-        int temp = arr[second_index];
-        arr[second_index] = arr[i];
-        arr[i] = temp;
+    for (uint8_t i = DECK_SIZE - 1; i > 0; i--) {
+        uint8_t second_index = (uint8_t)random_range(0, (uint32_t)i, s_thread_id); 
+        
+        AppStatus ret_code_swap = swap_nibbles(i, second_index, arr);
+        if(!c_assert(ret_code_swap == SYS_OK) == true)
+        {
+          return ret_code_swap;
+        }
     }
 
     return SYS_OK;
 }
 
-static AppStatus assert_deck_is_valid(const int arr[])
+static AppStatus assert_deck_is_valid(const uint8_t arr[])
 { 
   if(!require_valid_ptr(arr))
   {
@@ -57,9 +92,10 @@ static AppStatus assert_deck_is_valid(const int arr[])
   }
 
   int val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
-  for(int i = 0; i < DECK_SIZE; ++i)
+  for(int i = 0; i < DECK_SIZE / 2; ++i)
   {
-    val_array[arr[i]]++;
+    val_array[arr[i] & 0x0F]++;
+    val_array[(arr[i] & 0xF0) >> 4]++;
   }
   
   if(!c_assert(val_array[0] == 0))
@@ -78,7 +114,7 @@ static AppStatus assert_deck_is_valid(const int arr[])
   return SYS_OK;
 }
 
-static AppStatus score_num_less_than_unmatchable_card(int val_array[], int num, int* out_delta_count)
+static AppStatus score_num_less_than_unmatchable_card(uint8_t val_array[], uint8_t num, int* out_delta_count)
 {
     if(!require_valid_ptr(out_delta_count))
     {
@@ -90,7 +126,7 @@ static AppStatus score_num_less_than_unmatchable_card(int val_array[], int num, 
       return ERROR_INVALID_INPUT;
     }
 
-    if(!c_assert(num >= 0 && num <= DECK_SIZE / NUM_SUITS) == true)
+    if(!c_assert(num <= DECK_SIZE / NUM_SUITS) == true)
     { 
       return ERROR_INVALID_INPUT;
     }
@@ -110,7 +146,7 @@ static AppStatus score_num_less_than_unmatchable_card(int val_array[], int num, 
     return SYS_OK;
 }
 
-static AppStatus score_num_greater_than_unmatchable_card(int val_array[], int num, int* out_delta_count)
+static AppStatus score_num_greater_than_unmatchable_card(uint8_t val_array[], uint8_t num, int* out_delta_count)
 {
     if(!require_valid_ptr(out_delta_count))
     {
@@ -122,7 +158,7 @@ static AppStatus score_num_greater_than_unmatchable_card(int val_array[], int nu
       return ERROR_INVALID_INPUT;
     }
 
-    if(!c_assert(num >= 0 && num <= DECK_SIZE / NUM_SUITS) == true)
+    if(!c_assert(num <= DECK_SIZE / NUM_SUITS) == true)
     { 
       return ERROR_INVALID_INPUT;
     }
@@ -142,9 +178,8 @@ static AppStatus score_num_greater_than_unmatchable_card(int val_array[], int nu
     return SYS_OK;
 }
 
-static AppStatus score_num_equal_to_unmatchable_card(int val_array[], int num, int* out_delta_count)
+static AppStatus score_num_equal_to_unmatchable_card(uint8_t val_array[], uint8_t num, int* out_delta_count)
 {
-  
     if(!require_valid_ptr(out_delta_count))
     {
       return ERROR_INVALID_INPUT;
@@ -155,7 +190,7 @@ static AppStatus score_num_equal_to_unmatchable_card(int val_array[], int num, i
       return ERROR_INVALID_INPUT;
     }
 
-    if(!c_assert(num >= 0 && num <= DECK_SIZE / NUM_SUITS) == true)
+    if(!c_assert(num <= DECK_SIZE / NUM_SUITS) == true)
     { 
       return ERROR_INVALID_INPUT;
     }
@@ -167,14 +202,14 @@ static AppStatus score_num_equal_to_unmatchable_card(int val_array[], int num, i
 }
 
 
-static AppStatus score_num(int val_array[], int num, int* out_delta_count)
+static AppStatus score_num(uint8_t val_array[], uint8_t num, int* out_delta_count)
 { 
     if(!require_valid_ptr(val_array))
     {
       return ERROR_INVALID_INPUT;
     }
     
-    if(!c_assert(num >= 0 && num <= DECK_SIZE / NUM_SUITS) == true)
+    if(!c_assert(num <= DECK_SIZE / NUM_SUITS) == true)
     { 
       return ERROR_INVALID_INPUT;
     }
@@ -194,7 +229,7 @@ static AppStatus score_num(int val_array[], int num, int* out_delta_count)
       ret_code_score_func = score_num_equal_to_unmatchable_card(val_array, num, &delta_count);
     }
 
-    if(ret_code_score_func != SYS_OK)
+    if(!c_assert(ret_code_score_func == SYS_OK) == true)
     {
       return ret_code_score_func;
     }
@@ -213,7 +248,7 @@ typedef struct
   int value;
 } ScoreResult;
 
-static AppStatus score_array(int arr[], ScoreResult* out_result)
+static AppStatus score_array(uint8_t arr[], ScoreResult* out_result)
 {
   if(!require_valid_ptr(arr))
   {
@@ -221,21 +256,26 @@ static AppStatus score_array(int arr[], ScoreResult* out_result)
   }
 
   AppStatus assert_deck_is_valid_ret_code = assert_deck_is_valid(arr);
-  if(assert_deck_is_valid_ret_code != SYS_OK)
+  if(!c_assert(assert_deck_is_valid_ret_code == SYS_OK) == true)
   {
     return assert_deck_is_valid_ret_code;
   }
 
   int count = 0;
-  int val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
+  uint8_t val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
 
-  for(int i = 0; i < DECK_SIZE; i++)
+  for(uint8_t i = 0; i < DECK_SIZE; i++)
   {
-    int num = arr[i];
+    uint8_t num;
+
+    if(i & 0x01) { num = (arr[i >> 1] & 0x0F); }
+    else { num = (arr[i >> 1] & 0xF0) >> 4; }
+
     int delta_count = 0;
 
     AppStatus ret_score_num = score_num(val_array, num, &delta_count);
-    if(ret_score_num != SYS_OK)
+
+    if(!c_assert(ret_score_num == SYS_OK) == true)
     {
       return ret_score_num;
     }
@@ -254,7 +294,7 @@ static AppStatus score_array(int arr[], ScoreResult* out_result)
 
     if(count == MAX_ACTIVE_CARDS + 1)
     {
-      if (!c_assert(val_array[0] >= 0 && (val_array[0] <= (NUM_POSSIBLE_SCORES))) == true)
+      if (!c_assert(val_array[0] >= 0 && (val_array[0] < (NUM_POSSIBLE_SCORES))) == true)
       {
         return ERROR_IMPOSSIBLE_VALUE_REACHED;
       }
@@ -302,14 +342,7 @@ void* worker(void* arg)
 
   uint64_t num_runs = args->num_sim;
 
-  uint8_t deck[DECK_SIZE];
-  for(int j = 0; j < NUM_SUITS; j++)
-  {
-    for(int i = 0; i < DECK_SIZE / NUM_SUITS; i++)
-    {
-      deck[(j * DECK_SIZE / NUM_SUITS) + i] = i + 1;
-    }
-  }
+  uint8_t deck[DECK_SIZE/2] = { 0x11, 0x11, 0x22, 0x22, 0x33, 0x33, 0x44, 0x44, 0x55, 0x55, 0x66, 0x66, 0x77, 0x77, 0x88, 0x88, 0x99, 0x99, 0xAA, 0xAA, 0xBB, 0xBB, 0xCC, 0xCC, 0xDD, 0xDD };
 
   ScoreResult res = {0};
   for(uint64_t i = 0; i < num_runs; i++)
@@ -365,7 +398,7 @@ static AppStatus write_output_as_json(const uint64_t result_arr[])
     (void)fprintf(stderr, "fclose failed: error code is '%d'", errno);
     return ERROR_COULD_NOT_CLOSE_OUTPUT_FILE;
   }
-  (void)fprintf(stdout, "results written to output.json");
+  (void)fprintf(stdout, "results written to output.json\n");
   return SYS_OK;
 }
 
@@ -433,9 +466,9 @@ int main(void)
   (void)fprintf(stdout, "\n ------------- SCORES ------------- \n");
   for(int i = 0; i < NUM_POSSIBLE_SCORES; ++i)
   {
-    (void)fprintf(stdout, "%ld ", result_array[NUM_THREADS][i]);
+    (void)fprintf(stdout, "%" PRIu64 " ",  result_array[NUM_THREADS][i]);
   }
-  (void)fprintf(stdout, "\nTotal sim ran: %lu\n", count);
+  (void)fprintf(stdout, "\nTotal sim ran: %" PRIu64 "\n", count);
   return 0;
 }
 
