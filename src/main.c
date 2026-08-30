@@ -119,7 +119,7 @@ static AppStatus assert_deck_is_valid(const uint8_t arr[])
   return SYS_OK;
 }
 
-static AppStatus score_num_less_than_unmatchable_card(uint8_t val_array[], uint8_t num, int* out_delta_count)
+static AppStatus score_num_less_than_unmatchable_card(int8_t val_array[], uint8_t num, int* out_delta_count)
 {
     if(!require_valid_ptr(out_delta_count))
     {
@@ -151,7 +151,7 @@ static AppStatus score_num_less_than_unmatchable_card(uint8_t val_array[], uint8
     return SYS_OK;
 }
 
-static AppStatus score_num_greater_than_unmatchable_card(uint8_t val_array[], uint8_t num, int* out_delta_count)
+static AppStatus score_num_greater_than_unmatchable_card(int8_t val_array[], uint8_t num, int* out_delta_count)
 {
     if(!require_valid_ptr(out_delta_count))
     {
@@ -183,7 +183,7 @@ static AppStatus score_num_greater_than_unmatchable_card(uint8_t val_array[], ui
     return SYS_OK;
 }
 
-static AppStatus score_num_equal_to_unmatchable_card(uint8_t val_array[], uint8_t num, int* out_delta_count)
+static AppStatus score_num_equal_to_unmatchable_card(int8_t val_array[], uint8_t num, int* out_delta_count)
 {
     if(!require_valid_ptr(out_delta_count))
     {
@@ -207,7 +207,7 @@ static AppStatus score_num_equal_to_unmatchable_card(uint8_t val_array[], uint8_
 }
 
 
-static AppStatus score_num(uint8_t val_array[], uint8_t num, int* out_delta_count)
+static AppStatus score_num(int8_t val_array[], uint8_t num, int* out_delta_count)
 { 
     if(!require_valid_ptr(val_array))
     {
@@ -267,7 +267,7 @@ static AppStatus score_array(uint8_t arr[], ScoreResult* out_result)
   }
 
   int count = 0;
-  uint8_t val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
+  int8_t val_array[(DECK_SIZE/NUM_SUITS) + 1] = {0};
 
   for(uint8_t i = 0; i < DECK_SIZE; i++)
   {
@@ -303,12 +303,12 @@ static AppStatus score_array(uint8_t arr[], ScoreResult* out_result)
       {
         return ERROR_IMPOSSIBLE_VALUE_REACHED;
       }
-      out_result->value = val_array[0];
+      out_result->value = (uint8_t)val_array[0];
       return SYS_OK;
     }
   }
 
-  out_result->value = val_array[0];
+  out_result->value = (uint8_t)val_array[0];
   return SYS_OK;
 }
 
