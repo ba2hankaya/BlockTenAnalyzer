@@ -24,7 +24,7 @@ typedef enum {
 #define UNMATCHABLE_CARD 10
 #define NUM_POSSIBLE_SCORES ((((DECK_SIZE)-NUM_SUITS)/2) + 1)    //2D array for holding each thread's score, plus their sum at the last row. (Deck size - number of tens) / 2 gives the number of possible matches and therefore scores, + 1 for no match (a score of 0)
 
-static AppStatus fisher_yates_shuffle(int arr[], size_t thread_id) {
+static AppStatus fisher_yates_shuffle(uint8_t arr[], size_t thread_id) {
     if(!require_valid_ptr(arr))
     {
       return ERROR_INVALID_INPUT;
@@ -302,7 +302,7 @@ void* worker(void* arg)
 
   uint64_t num_runs = args->num_sim;
 
-  int deck[DECK_SIZE];
+  uint8_t deck[DECK_SIZE];
   for(int j = 0; j < NUM_SUITS; j++)
   {
     for(int i = 0; i < DECK_SIZE / NUM_SUITS; i++)
