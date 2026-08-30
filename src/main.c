@@ -253,6 +253,44 @@ typedef struct
   int value;
 } ScoreResult;
 
+static AppStatus process_single_card(uint8_t card_val, int8_t val_array[], int* current_count, bool* out_is_finished)
+{
+    int delta_count = 0;
+    AppStatus ret_score_num = score_num(val_array, card_val, &delta_count);
+
+    if(!c_assert(ret_score_num == SYS_OK) == true)
+    {
+      return ret_score_num;
+    }
+
+    if (!c_assert(val_array[card_val] >= 0 && val_array[card_val] <= NUM_SUITS) == true)
+    {
+      return ERROR_IMPOSSIBLE_VALUE_REACHED;
+    }
+
+    if (!c_assert(*current_count >= 0 && *current_count <= MAX_ACTIVE_CARDS + 1) == true)
+    {
+      return ERROR_IMPOSSIBLE_VALUE_REACHED;
+    }
+
+    *current_count += delta_count;
+
+    if(*current_count == MAX_ACTIVE_CARDS + 1)
+    {
+      if (!c_assert(val_array[0] >= 0 && (val_array[0] < NUM_POSSIBLE_SCORES)) == true)
+      {
+        return ERROR_IMPOSSIBLE_VALUE_REACHED;
+      }
+      *out_is_finished = true;
+    }
+    else
+    {
+      *out_is_finished = false;
+    }
+
+    return SYS_OK;
+}
+
 static AppStatus score_array(uint8_t arr[], ScoreResult* out_result)
 {
   if(!require_valid_ptr(arr))
@@ -272,43 +310,25 @@ static AppStatus score_array(uint8_t arr[], ScoreResult* out_result)
   for(uint8_t i = 0; i < DECK_SIZE; i++)
   {
     uint8_t num;
-
     if(i & 0x01) { num = (arr[i >> 1] & NIBBLE_MASK_LOWER); }
     else { num = (arr[i >> 1] & NIBBLE_MASK_UPPER) >> 4; }
 
-    int delta_count = 0;
+    bool is_finished = false;
 
-    AppStatus ret_score_num = score_num(val_array, num, &delta_count);
-
-    if(!c_assert(ret_score_num == SYS_OK) == true)
+    AppStatus process_ret = process_single_card(num, val_array, &count, &is_finished);
+    if(!c_assert(process_ret == SYS_OK) == true)
     {
-      return ret_score_num;
+      return process_ret;
     }
 
-    if (!c_assert(val_array[num] >= 0 && val_array[num] <= NUM_SUITS) == true)
+    if(is_finished)
     {
-      return ERROR_IMPOSSIBLE_VALUE_REACHED;
-    }
-
-    if (!c_assert(count >= 0 && count <= MAX_ACTIVE_CARDS + 1) == true)
-    {
-      return ERROR_IMPOSSIBLE_VALUE_REACHED;
-    }
-
-    count += delta_count;
-
-    if(count == MAX_ACTIVE_CARDS + 1)
-    {
-      if (!c_assert(val_array[0] >= 0 && (val_array[0] < (NUM_POSSIBLE_SCORES))) == true)
-      {
-        return ERROR_IMPOSSIBLE_VALUE_REACHED;
-      }
-      out_result->value = (uint8_t)val_array[0];
+      out_result->value = (int)val_array[0];
       return SYS_OK;
     }
   }
 
-  out_result->value = (uint8_t)val_array[0];
+  out_result->value = (int)val_array[0];
   return SYS_OK;
 }
 
