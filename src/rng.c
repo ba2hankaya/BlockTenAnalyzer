@@ -1,6 +1,6 @@
+#include <stddef.h>
 #include "config.h"
 #include "rng.h"
-#include <pthread.h>
 
 //NOLINTBEGIN(readability-magic-numbers, readability-identifier-length)
 static uint64_t x = MAIN_SEED;

@@ -2,7 +2,6 @@
 #define RNG_H
 
 #include <stdint.h>
-#include <string.h>
 
 void initialize_rng(void);
 

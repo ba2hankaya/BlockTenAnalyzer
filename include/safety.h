@@ -2,12 +2,11 @@
 #define SAFETY_H
 
 #include <stdbool.h>
-#include <stdio.h>
 
 #ifdef PRODUCTION_RELEASE
     #define tst_debugging(...) ((void)0)
 #else
-    #define tst_debugging(fmt, ...) (void)fprintf(stderr, fmt, __VA_ARGS__)
+    #define tst_debugging(fmt, ...) ((void)0)
 #endif
 
 #define c_assert(e) ((e) ? (true) : \

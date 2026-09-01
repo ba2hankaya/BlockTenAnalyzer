@@ -1,12 +1,66 @@
 #include <stdint.h>
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <inttypes.h>
+#include <stddef.h>
 #include "config.h"
 #include "rng.h"
 #include "safety.h"
+
+#define UART0 ((volatile uint8_t *)0x10000000)
+#define MAX_ASCII_DIGITS_UINT64T 24
+
+void* memcpy(void *dest, const void *src, size_t n) {
+    uint8_t *d = (uint8_t *)dest;
+    const uint8_t *s = (const uint8_t *)src;
+    for (size_t i = 0; i < n; i++) {
+        d[i] = s[i];
+    }
+    return dest;
+}
+
+void* memset(void *dest, int val, size_t len) {
+    uint8_t *ptr = (uint8_t *)dest;
+    for (size_t i = 0; i < len; i++) {
+        ptr[i] = (uint8_t)val;
+    }
+    return dest;
+}
+
+static void serial_transmit(char data)
+{ 
+  *UART0 = data;
+}
+
+static void print_string(const char* str)
+{ 
+  while(*str)
+  {
+    serial_transmit(*str++);
+  }
+}
+
+static void print_uint32(uint32_t num)
+{
+  if(num == 0)
+  {
+    serial_transmit('0');
+    return;
+  }
+
+  char buffer[MAX_ASCII_DIGITS_UINT64T];
+  uint8_t index = 0;
+
+  while(num > 0)
+  {
+    buffer[index] = (char)((num%10) + '0');
+    index ++;
+    num /= 10;
+  }
+
+  while (index > 0)
+  {
+    index--;
+    serial_transmit(buffer[index]);
+  }
+}
 
 typedef enum {
   SYS_OK = 0,
@@ -27,7 +81,6 @@ typedef enum {
 #define NIBBLE_MASK_UPPER  0xF0
 #define BIT_MASK_ODD       0x01
 
-static const uint8_t DECK_VALUES[DECK_SIZE / 2] = { 0x11, 0x11, 0x22, 0x22, 0x33, 0x33, 0x44, 0x44, 0x55, 0x55, 0x66, 0x66, 0x77, 0x77, 0x88, 0x88, 0x99, 0x99, 0xAA, 0xAA, 0xBB, 0xBB, 0xCC, 0xCC, 0xDD, 0xDD };
 
 // Adding no lint since swapping first_index with second_index doesn't affect the result of the function 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
@@ -333,19 +386,18 @@ static AppStatus score_array(uint8_t arr[], ScoreResult* out_result)
   return SYS_OK;
 }
 
-static AppStatus run_simulation(uint64_t result_arr[], uint64_t num_sim)
+static AppStatus run_simulation(uint32_t result_arr[], uint32_t num_sim)
 { 
   if(!require_valid_ptr(result_arr))
   {
     return ERROR_INVALID_INPUT;
   }
 
-  uint8_t deck[DECK_SIZE/2];
-  (void)memcpy(deck, DECK_VALUES, sizeof(DECK_VALUES)); //not really necessary but kept
+  uint8_t deck[DECK_SIZE / 2] = { 0x11, 0x11, 0x22, 0x22, 0x33, 0x33, 0x44, 0x44, 0x55, 0x55, 0x66, 0x66, 0x77, 0x77, 0x88, 0x88, 0x99, 0x99, 0xAA, 0xAA, 0xBB, 0xBB, 0xCC, 0xCC, 0xDD, 0xDD };
 
   ScoreResult res = {0};
 
-  for(uint64_t i = 0; i < num_sim; i++)
+  for(uint32_t i = 0; i < num_sim; i++)
   {
     AppStatus ret_code_fisher_yates = fisher_yates_shuffle(deck, 0);
     if(!c_assert(ret_code_fisher_yates == SYS_OK))
@@ -363,73 +415,37 @@ static AppStatus run_simulation(uint64_t result_arr[], uint64_t num_sim)
   return SYS_OK;
 }
 
-static AppStatus write_output_as_json(const uint64_t result_arr[])
-{
-  if(!require_valid_ptr(result_arr))
-  {
-    return ERROR_INVALID_INPUT;
-  }
-  
-  FILE *fptr;
-  fptr = fopen("output.json", "w");
-  
-  if(fptr == NULL)
-  {
-    return ERROR_COULD_NOT_CREATE_OUTPUT_FILE;
-  }
-  
-  (void)fprintf(fptr, "{\n");
-  for(int i = 0; i < NUM_POSSIBLE_SCORES; ++i) {
-      (void)fprintf(fptr, "  \"%d\": %ld", i, result_arr[i]);
-      if(i != NUM_POSSIBLE_SCORES - 1){
-          (void)fprintf(fptr, ",");
-      }
-      (void)fprintf(fptr, "\n");
-  }
-  (void)fprintf(fptr, "}\n");
-  int ret_val_fclose = fclose(fptr);
-  if(ret_val_fclose != 0)
-  {
-    (void)fprintf(stderr, "fclose failed: error code is '%d'", errno);
-    return ERROR_COULD_NOT_CLOSE_OUTPUT_FILE;
-  }
-
-  (void)fprintf(stdout, "results written to output.json\n");
-  return SYS_OK;
-}
-
 int main(void)
 {
+  print_string("RISC-V sim booting...");
 
   initialize_rng();
 
-  uint64_t result_array[NUM_POSSIBLE_SCORES] = {0}; 
+  uint32_t result_array[NUM_POSSIBLE_SCORES] = {0}; 
   
-  AppStatus ret_code_run_simulation = run_simulation(result_array, (uint64_t)NUM_SIMS);
+  AppStatus ret_code_run_simulation = run_simulation(result_array, (uint32_t)NUM_SIMS);
     
   if(!c_assert(ret_code_run_simulation == SYS_OK) == true)
   {
     return 1;
   }
 
-  uint64_t count = 0;
-  for(int j = 0; j < NUM_POSSIBLE_SCORES; j++)
-  {
-    count += result_array[j];
-  }
+  uint32_t count = 0;
 
-  AppStatus ret_code_write_output = write_output_as_json(result_array);
-  if(!c_assert(ret_code_write_output == SYS_OK) == true)
-  {
-     (void)fprintf(stderr, "Error while writing results to output.json\n");
-  }
-
-  (void)fprintf(stdout, "\n ------------- SCORES ------------- \n");
+  print_string("\n ------------- SCORES ------------- \n");
   for(int i = 0; i < NUM_POSSIBLE_SCORES; ++i)
   {
-    (void)fprintf(stdout, "%" PRIu64 " ",  result_array[i]);
+    count += result_array[i];
+    print_uint32((uint32_t)i);
+    print_string(": ");
+    print_uint32(result_array[i]);
+    print_string("\n");
   }
-  (void)fprintf(stdout, "\nTotal sim ran: %" PRIu64 "\n", count);
+  print_string("Simulations complete. Total sim ran: ");
+  print_uint32(count);
+  print_string("\n");
+
+  while(1) {}
   return 0;
 }
 
