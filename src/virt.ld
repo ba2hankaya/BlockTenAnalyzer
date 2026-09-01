@@ -2,7 +2,7 @@ ENTRY(_start)
 
 MEMORY {
     /* QEMU virt machine RAM starts at 0x80000000 */
-    RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 3K
+    RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 0xA00
 }
 
 SECTIONS {
@@ -27,11 +27,11 @@ SECTIONS {
         __bss_end = .;
     } > RAM
 
-    /* Allocate 1KB for the stack */
+    /* Allocate 512 Bytes for the stack */
     .stack : {
       . = ALIGN(16);
       _stack_bottom = .;
-      . += 0x400;
+      . += 0x200;
       _stack_top = .;
     } > RAM
 }
