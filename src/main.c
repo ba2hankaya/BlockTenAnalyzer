@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <inttypes.h>
 #include "config.h"
 #include "rng.h"
 #include "safety.h"
@@ -433,9 +434,9 @@ int main(void)
   (void)fprintf(stdout, "\n ------------- SCORES ------------- \n");
   for(int i = 0; i < NUM_POSSIBLE_SCORES; ++i)
   {
-    (void)fprintf(stdout, "%ld ", result_array[NUM_THREADS][i]);
+    (void)fprintf(stdout, "%" PRIu64 " ", result_array[NUM_THREADS][i]);
   }
-  (void)fprintf(stdout, "\nTotal sim ran: %lu\n", count);
+  (void)fprintf(stdout, "\nTotal sim ran: %" PRIu64 "\n", count);
   return 0;
 }
 
